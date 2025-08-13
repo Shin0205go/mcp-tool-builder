@@ -13,13 +13,16 @@ const crudPack = new CrudTemplatePack();
 const mockContext: TemplateContext = {
   spec: {
     name: 'test-spec',
+    description: 'Test specification',
     version: '1.0.0',
     entities: [],
     actions: [],
     views: [],
     flows: [],
     policies: [],
-    capabilities: []
+    capabilities: [],
+    i18n: { defaultLocale: 'en', supportedLocales: ['en'] },
+    metadata: {}
   },
   providers: { storage: 'postgres' },
   config: {

@@ -24,10 +24,7 @@ export class SchemaFirstGenerator {
 
 // Base ${entityName} schema (single source of truth)
 export const ${entityName} = z.object({
-  id: z.string().uuid().optional(),
-  createdAt: z.string().datetime().optional(),
-  updatedAt: z.string().datetime().optional(),
-${fields.map(field => this.generateZodField(field)).join(',\n')}
+${this.generateEntityFields(entity).join(',\n')}
 });
 
 // Input/Output schemas for operations
@@ -397,5 +394,40 @@ ${formFields}
 
   private getOriginPlaceholder(): string {
     return '{{UI_ORIGIN}}'; // Will be replaced during generation
+  }
+
+  /**
+   * エンティティフィールドを重複なく生成
+   */
+  private generateEntityFields(entity: Entity): string[] {
+    const fieldNames = new Set<string>();
+    const generatedFields: string[] = [];
+
+    // システムフィールド (id, createdAt, updatedAt) を追加（存在しない場合のみ）
+    const systemFields = [
+      { name: 'id', zodType: 'z.string().uuid().optional()' },
+      { name: 'createdAt', zodType: 'z.string().datetime().optional()' },
+      { name: 'updatedAt', zodType: 'z.string().datetime().optional()' }
+    ];
+
+    // エンティティフィールドで既に定義されているか確認
+    const entityFieldNames = entity.fields.map(f => f.name);
+    
+    for (const systemField of systemFields) {
+      if (!entityFieldNames.includes(systemField.name)) {
+        generatedFields.push(`  ${systemField.name}: ${systemField.zodType}`);
+        fieldNames.add(systemField.name);
+      }
+    }
+
+    // エンティティフィールドを追加
+    for (const field of entity.fields) {
+      if (!fieldNames.has(field.name)) {
+        generatedFields.push(`  ${this.generateZodField(field)}`);
+        fieldNames.add(field.name);
+      }
+    }
+
+    return generatedFields;
   }
 }

@@ -15,6 +15,10 @@
     "config:init": "node dist/scripts/init-config.js",
     "config:validate": "node dist/scripts/validate_config.js",
     "test": "npm run build && node dist/tests/crud_pack_test.js",
+    "test:integration": "npm run build && node dist/tests/integration/simple-generation.test.js",
+    "test:e2e": "npm run build && node dist/tests/integration/real-llm-e2e.test.js",
+    "test:all": "npm run test && npm run test:integration",
+    "test:full": "npm run test && npm run test:integration && npm run test:e2e",
     "test:jest": "jest",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src"
