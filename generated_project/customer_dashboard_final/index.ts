@@ -95,7 +95,7 @@ function auditLog(level: 'info' | 'error', requestId: string, toolName: string, 
     message,
     ...(details && { details })
   };
-  console.log(JSON.stringify(logEntry));
+  console.error(JSON.stringify(logEntry));
 }
 
 // call_tool - Type-safe tool invocation with audit logging
@@ -207,13 +207,11 @@ server.setRequestHandler(GetPromptRequestSchema, async (req) => {
     description: 'Open CustomerDashboard dashboard',
     messages: [{
       role: 'assistant',
-      content: [{
-        type: 'resource',
-        resource: {
-          uri: 'ui://customerdashboard/dashboard',
-          text: 'Dashboard opened'
-        }
-      }]
+      content: {
+        type: 'resource_link',
+        name: 'Customer Dashboard',
+        uri: 'ui://customerdashboard/dashboard'
+      }
     }]
   };
 });
