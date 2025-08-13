@@ -1,0 +1,48 @@
+{
+  "name": "CustomerDashboard",
+  "description": "Customer management dashboard with CRUD operations",
+  "entities": [
+    {
+      "name": "Customer",
+      "description": "Customer entity with contact information and status tracking",
+      "fields": [
+        {
+          "name": "firstname",
+          "type": "string",
+          "nullable": false,
+          "description": "Customer first name"
+        },
+        {
+          "name": "lastname",
+          "type": "string",
+          "nullable": false,
+          "description": "Customer last name"
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "nullable": false,
+          "description": "Customer email address"
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "nullable": true,
+          "description": "Customer phone number"
+        },
+        {
+          "name": "company",
+          "type": "string",
+          "nullable": true,
+          "description": "Customer company name"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "nullable": false,
+          "description": "Customer status (active, inactive, suspended)"
+        }
+      ]
+    }
+  ]
+}

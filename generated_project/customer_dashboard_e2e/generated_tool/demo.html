@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>generated_tool - UI Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .demo-header {
+            background: #3b82f6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .demo-iframe {
+            width: 100%;
+            height: 800px;
+            border: none;
+        }
+        .demo-controls {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+        .demo-note {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>generated_tool</h1>
+            <p>Host-mediated UI Integration Demo</p>
+        </div>
+        
+        <iframe id="ui-iframe" class="demo-iframe" src="about:blank"></iframe>
+        
+        <div class="demo-controls">
+            <button id="load-dashboard" style="
+                background: #3b82f6;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-right: 8px;
+            ">Load Item Dashboard</button>
+            
+            <button id="refresh-data" style="
+                background: #10b981;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+            ">Refresh Data</button>
+            
+            <div class="demo-note">
+                <strong>Note:</strong> This is a demo of the host-mediated UI integration. 
+                In production, this would be integrated into your chat UI or application host.
+                <br><br>
+                <strong>Origin:</strong> http://localhost:3000
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { embedMCPUI } from './host/embed.js';
+        
+        // Mock MCP client for demo
+        const mockMcpClient = {
+            async call(tool, params, options) {
+                console.log('Mock MCP call:', tool, params);
+                
+                // Mock responses for demo
+                if (tool === 'ui.item.dashboard') {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: JSON.stringify({
+                                uri: 'ui://item/dashboard',
+                                content: {
+                                    type: 'rawHtml',
+                                    htmlString: '<!-- UI will be loaded here -->'
+                                },
+                                needs: [
+                                    { tool: 'listItems', params: { limit: 20 } }
+                                ],
+                                allowTools: ['createItem', 'getItem', 'updateItem', 'deleteItem', 'listItems']
+                            })
+                        }]
+                    };
+                }
+                
+                if (tool === 'listItems') {
+                    return {
+                        items: [
+                            { id: '1', name: 'Demo Item 1', createdAt: new Date().toISOString() },
+                            { id: '2', name: 'Demo Item 2', createdAt: new Date().toISOString() }
+                        ]
+                    };
+                }
+                
+                return { success: true, message: `Mock response for ${tool}` };
+            }
+        };
+        
+        // Setup demo
+        const container = document.getElementById('ui-iframe');
+        
+        document.getElementById('load-dashboard').addEventListener('click', async () => {
+            try {
+                await embedMCPUI({
+                    container: container.parentElement,
+                    uiOrigin: 'http://localhost:3000',
+                    mcpClient: mockMcpClient,
+                    uiTool: 'ui.item.dashboard',
+                    params: { limit: 20 },
+                    onLoaded: () => console.log('UI loaded successfully'),
+                    onError: (error) => console.error('UI error:', error)
+                });
+            } catch (error) {
+                console.error('Failed to load UI:', error);
+            }
+        });
+        
+        console.log('Demo ready - click "Load Item Dashboard" to start');
+    </script>
+</body>
+</html>

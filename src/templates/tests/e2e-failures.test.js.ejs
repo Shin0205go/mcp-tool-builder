@@ -1,0 +1,253 @@
+import { test } from 'node:test';
+import assert from 'node:assert';
+import { server } from '../index.js';
+import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+
+/**
+ * End-to-End Failure Mode Tests
+ * 
+ * Tests system behavior under adverse conditions:
+ * - Database connection failures
+ * - Network timeouts 
+ * - Invalid authentication
+ * - Resource exhaustion
+ * 
+ * Ensures graceful degradation and proper error reporting.
+ */
+
+// Mock database connection failure
+function mockDatabaseFailure() {
+  const originalQuery = global.db?.query;
+  if (global.db) {
+    global.db.query = async () => {
+      const error = new Error('Connection terminated');
+      error.code = 'ECONNRESET';
+      error.errno = -104;
+      throw error;
+    };
+  }
+  return () => {
+    if (global.db && originalQuery) {
+      global.db.query = originalQuery;
+    }
+  };
+}
+
+// Mock timeout scenario
+function mockTimeout(ms = 5000) {
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    return new Promise((_, reject) => {
+      setTimeout(() => {
+        const error = new Error(`Request timeout after ${ms}ms`);
+        error.code = 'TIMEOUT';
+        reject(error);
+      }, ms);
+    });
+  };
+  return () => {
+    global.fetch = originalFetch;
+  };
+}
+
+test('E2E - Database connection failure handling', async () => {
+  const restore = mockDatabaseFailure();
+  
+  try {
+    const handler = server.getRequestHandler(CallToolRequestSchema);
+    
+    // Attempt to call a database-dependent tool
+    const request = {
+      params: {
+        name: 'list<%= entity.name %>s',
+        arguments: { page: 1, limit: 10 }
+      },
+      method: 'tools/call',
+      id: 'test-db-failure'
+    };
+    
+    const response = await handler(request);
+    
+    // Should get structured error response, not crash
+    assert(response.content, 'Response should have content');
+    assert(response.content[0], 'Response should have first content item');
+    
+    const errorData = JSON.parse(response.content[0].text);
+    
+    // Validate error structure
+    assert(typeof errorData.code === 'number', 'Error should have numeric code');
+    assert(typeof errorData.message === 'string', 'Error should have message');
+    assert(errorData.details, 'Error should have details object');
+    assert(errorData.details.requestId, 'Error should include request ID for tracing');
+    assert(errorData.details.toolName, 'Error should include tool name');
+    assert(errorData.details.timestamp, 'Error should include timestamp');
+    
+    // Should be proper server error, not crash
+    assert(errorData.code >= 500 && errorData.code < 600, 
+      'Database failure should return 5xx server error');
+    
+    console.log(`✓ Database failure handled gracefully: ${errorData.message}`);
+    
+  } finally {
+    restore();
+  }
+});
+
+test('E2E - Request timeout handling', async () => {
+  const restore = mockTimeout(100); // Very short timeout
+  
+  try {
+    // For tools that might make external HTTP calls
+    const handler = server.getRequestHandler(CallToolRequestSchema);
+    
+    const request = {
+      params: {
+        name: 'create<%= entity.name %>',
+        arguments: {
+          <% entity.fields.forEach(field => { 
+            if (field.type === 'uuid' || field.type === 'datetime') return; 
+          %>
+          <%= field.name %>: <%= field.type === 'string' ? '"test value"' : field.type === 'number' ? '123' : 'true' %>,
+          <% }); %>
+        }
+      },
+      method: 'tools/call', 
+      id: 'test-timeout'
+    };
+    
+    const startTime = Date.now();
+    const response = await handler(request);
+    const duration = Date.now() - startTime;
+    
+    // Should complete quickly (either success or quick failure)
+    assert(duration < 2000, 'Request should not hang indefinitely');
+    
+    if (response.content) {
+      const responseData = JSON.parse(response.content[0].text);
+      
+      // If it's an error response, should be structured
+      if (responseData.code && responseData.code >= 400) {
+        assert(responseData.message, 'Timeout error should have message');
+        assert(responseData.details, 'Timeout error should have details');
+        console.log(`✓ Timeout handled gracefully: ${responseData.message}`);
+      } else {
+        console.log('✓ Request completed successfully despite timeout mock');
+      }
+    }
+    
+  } finally {
+    restore();
+  }
+});
+
+test('E2E - Invalid input validation', async () => {
+  const handler = server.getRequestHandler(CallToolRequestSchema);
+  
+  // Test with completely invalid input
+  const request = {
+    params: {
+      name: 'create<%= entity.name %>',
+      arguments: {
+        invalid_field: 'this should not be allowed',
+        <% const firstRequiredField = entity.fields.find(f => !f.nullable && f.type !== 'uuid' && f.type !== 'datetime') %>
+        <% if (firstRequiredField) { %>
+        <%= firstRequiredField.name %>: null // Required field as null
+        <% } %>
+      }
+    },
+    method: 'tools/call',
+    id: 'test-validation'
+  };
+  
+  const response = await handler(request);
+  
+  assert(response.content, 'Should return error response for invalid input');
+  
+  const errorData = JSON.parse(response.content[0].text);
+  
+  // Should be validation error (4xx)
+  assert(errorData.code >= 400 && errorData.code < 500, 
+    'Invalid input should return 4xx client error');
+  
+  // Error should mention validation failure
+  assert(errorData.message.toLowerCase().includes('validation') || 
+         errorData.message.toLowerCase().includes('invalid') ||
+         errorData.message.toLowerCase().includes('required'),
+    'Error message should indicate validation failure');
+  
+  console.log(`✓ Input validation handled correctly: ${errorData.message}`);
+});
+
+test('E2E - Unknown tool handling', async () => {
+  const handler = server.getRequestHandler(CallToolRequestSchema);
+  
+  const request = {
+    params: {
+      name: 'nonexistent_tool',
+      arguments: {}
+    },
+    method: 'tools/call',
+    id: 'test-unknown-tool'
+  };
+  
+  const response = await handler(request);
+  const errorData = JSON.parse(response.content[0].text);
+  
+  // Should be 404 Not Found
+  assert(errorData.code === 404, 'Unknown tool should return 404');
+  assert(errorData.message.includes('not found'), 'Error should indicate tool not found');
+  assert(errorData.details.availableTools, 'Should list available tools for debugging');
+  assert(Array.isArray(errorData.details.availableTools), 'Available tools should be array');
+  
+  console.log(`✓ Unknown tool handled correctly, available tools: ${errorData.details.availableTools.join(', ')}`);
+});
+
+test('E2E - Audit logging verification', async () => {
+  const originalLog = console.log;
+  const logs = [];
+  
+  // Capture logs
+  console.log = (message) => {
+    logs.push(message);
+    originalLog(message);
+  };
+  
+  try {
+    const handler = server.getRequestHandler(CallToolRequestSchema);
+    
+    const request = {
+      params: {
+        name: 'list<%= entity.name %>s',
+        arguments: { page: 1, limit: 5 }
+      },
+      method: 'tools/call',
+      id: 'test-audit'
+    };
+    
+    await handler(request);
+    
+    // Should have audit log entries
+    const auditLogs = logs.filter(log => {
+      try {
+        const parsed = JSON.parse(log);
+        return parsed.requestId && parsed.toolName && parsed.timestamp;
+      } catch {
+        return false;
+      }
+    });
+    
+    assert(auditLogs.length >= 2, 'Should have at least start and completion audit logs');
+    
+    const startLog = JSON.parse(auditLogs.find(log => JSON.parse(log).message.includes('started')));
+    const endLog = JSON.parse(auditLogs.find(log => 
+      JSON.parse(log).message.includes('completed') || JSON.parse(log).message.includes('failed')));
+    
+    assert(startLog.requestId === endLog.requestId, 'Audit logs should have consistent request ID');
+    assert(startLog.toolName === endLog.toolName, 'Audit logs should have consistent tool name');
+    
+    console.log(`✓ Audit logging working correctly with request ID: ${startLog.requestId}`);
+    
+  } finally {
+    console.log = originalLog;
+  }
+});

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "customer-dashboard": {
+      "command": "node",
+      "args": ["./dist/index.js"],
+      "cwd": "/Users/shingo/Develop/mcp-tool-builder/generated_project/customer_dashboard_final"
+    }
+  }
+}

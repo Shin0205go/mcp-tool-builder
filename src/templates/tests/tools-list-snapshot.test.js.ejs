@@ -1,0 +1,117 @@
+import { test } from 'node:test';
+import assert from 'node:assert';
+import { server } from '../index.js';
+import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+
+/**
+ * Tools List Snapshot Test
+ * 
+ * Validates that tools/list response maintains expected structure:
+ * - All tools have required fields (name, description, inputSchema, outputSchema, errorSchema)
+ * - Input/output schemas are proper objects with type:"object" 
+ * - Required fields are properly defined
+ * - No schema generation failures that could hide bugs
+ */
+
+test('tools/list snapshot - schema structure validation', async () => {
+  // Mock the request handler call
+  const mockRequest = {
+    params: {},
+    method: 'tools/list',
+    id: 'test-1'
+  };
+
+  const handler = server.getRequestHandler(ListToolsRequestSchema);
+  assert(handler, 'tools/list handler should be registered');
+
+  const response = await handler(mockRequest);
+  
+  // Basic response structure
+  assert(response.tools, 'Response should have tools array');
+  assert(Array.isArray(response.tools), 'Tools should be an array');
+  assert(response.tools.length > 0, 'Should have at least one tool');
+
+  console.log(`Found ${response.tools.length} tools for validation`);
+
+  // Validate each tool structure
+  for (const tool of response.tools) {
+    console.log(`Validating tool: ${tool.name}`);
+    
+    // Required fields
+    assert(typeof tool.name === 'string' && tool.name.length > 0, 
+      `Tool ${tool.name} should have non-empty name`);
+    assert(typeof tool.description === 'string' && tool.description.length > 0,
+      `Tool ${tool.name} should have non-empty description`);
+    
+    // Schema validation - critical for MCP compliance
+    assert(tool.inputSchema && typeof tool.inputSchema === 'object',
+      `Tool ${tool.name} should have inputSchema object`);
+    assert(tool.outputSchema && typeof tool.outputSchema === 'object', 
+      `Tool ${tool.name} should have outputSchema object`);
+    assert(tool.errorSchema && typeof tool.errorSchema === 'object',
+      `Tool ${tool.name} should have errorSchema object`);
+
+    // Input schema structure
+    assert(tool.inputSchema.type === 'object',
+      `Tool ${tool.name} inputSchema should have type:"object"`);
+    assert(tool.inputSchema.hasOwnProperty('properties'),
+      `Tool ${tool.name} inputSchema should have properties`);
+    assert(Array.isArray(tool.inputSchema.required),
+      `Tool ${tool.name} inputSchema should have required array`);
+    assert(tool.inputSchema.additionalProperties === false,
+      `Tool ${tool.name} inputSchema should have strict validation (additionalProperties: false)`);
+
+    // Output schema structure  
+    assert(tool.outputSchema.type === 'object',
+      `Tool ${tool.name} outputSchema should have type:"object"`);
+    assert(tool.outputSchema.hasOwnProperty('properties'),
+      `Tool ${tool.name} outputSchema should have properties`);
+    
+    // Error schema structure
+    assert(tool.errorSchema.type === 'object',
+      `Tool ${tool.name} errorSchema should have type:"object"`);
+    
+    console.log(`✓ Tool ${tool.name} schema validation passed`);
+  }
+
+  // Regression prevention - no fallback schemas should be present
+  const hasFallbackSchemas = response.tools.some(tool => 
+    tool.inputSchema.description?.includes('Schema generation failed') ||
+    tool.outputSchema.description?.includes('Schema generation failed') ||
+    tool.inputSchema.additionalProperties === true
+  );
+  
+  assert(!hasFallbackSchemas, 
+    'No tools should use fallback schemas - this indicates schema generation failures');
+
+  console.log('✓ All tools/list schema validation passed');
+});
+
+test('tools/list production mode - schema failure exclusion', async () => {
+  // Test with NODE_ENV=production to ensure failed schemas exclude tools
+  const originalEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  
+  try {
+    const handler = server.getRequestHandler(ListToolsRequestSchema);
+    const response = await handler({ params: {}, method: 'tools/list', id: 'test-prod' });
+    
+    // In production, tools with failed schemas should be excluded entirely
+    // rather than falling back to permissive schemas
+    const toolNames = response.tools.map(t => t.name);
+    console.log(`Production mode tools: ${toolNames.join(', ')}`);
+    
+    // All remaining tools should have valid, strict schemas
+    for (const tool of response.tools) {
+      assert(tool.inputSchema.additionalProperties === false,
+        `Production tool ${tool.name} should have strict input validation`);
+      assert(!tool.inputSchema.description?.includes('fallback'),
+        `Production tool ${tool.name} should not use fallback schemas`);
+    }
+    
+    console.log('✓ Production mode schema validation passed');
+    
+  } finally {
+    process.env.NODE_ENV = originalEnv;
+  }
+});

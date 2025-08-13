@@ -1,0 +1,48 @@
+/**
+ * MCP Protocol Constants
+ * Ensures version consistency between client and server
+ */
+
+export const MCP_PROTOCOL_VERSION = '2024-11-05';
+
+export const SERVER_INFO = {
+  name: '<%= name %>',
+  version: '1.0.0',
+  protocolVersion: MCP_PROTOCOL_VERSION
+} as const;
+
+export const CAPABILITIES = {
+  tools: {
+    listChanged: false
+  },
+  resources: {
+    subscribe: false,
+    listChanged: false
+  }, 
+  prompts: {
+    listChanged: false
+  }
+} as const;
+
+// Standard error response schema
+export const ERROR_SCHEMA = {
+  type: 'object',
+  properties: {
+    code: { 
+      type: 'integer',
+      description: 'Error code (HTTP-style: 400=bad request, 404=not found, 500=internal)'
+    },
+    message: { 
+      type: 'string',
+      description: 'Human-readable error message'  
+    },
+    details: {
+      type: 'object',
+      description: 'Additional error context (optional)',
+      additionalProperties: true
+    }
+  },
+  required: ['code', 'message'],
+  additionalProperties: false,
+  $schema: 'http://json-schema.org/draft-07/schema#'
+} as const;

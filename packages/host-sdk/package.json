@@ -1,0 +1,27 @@
+{
+  "name": "@mcp-tool-builder/host-sdk",
+  "version": "1.0.0",
+  "description": "Host SDK for mounting and bridging MCP UI components",
+  "type": "module",
+  "main": "dist/host-sdk.js",
+  "types": "dist/host-sdk.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/host-sdk.d.ts",
+      "import": "./dist/host-sdk.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

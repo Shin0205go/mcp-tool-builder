@@ -1,0 +1,40 @@
+-- Migration: Create <%= entity.name %> table
+-- Generated from contract schema
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Create <%= entity.name.toLowerCase() %>s table
+CREATE TABLE IF NOT EXISTS <%= tableName %> (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+<% entity.fields.forEach(field => { %>
+<% if (field.type === 'uuid' || field.type === 'datetime') return; %>
+  <%= field.name %> <%= TYPE_MAP[field.type] %><%= field.nullable ? '' : ' NOT NULL' %>,
+<% }); %>
+);
+
+-- Create indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_<%= tableName %>_created_at ON <%= tableName %>(created_at);
+CREATE INDEX IF NOT EXISTS idx_<%= tableName %>_updated_at ON <%= tableName %>(updated_at);
+
+<% entity.fields.forEach(field => { %>
+<% if (field.type === 'email' || (field.type === 'string' && field.name.includes('name'))) { %>
+CREATE INDEX IF NOT EXISTS idx_<%= tableName %>_<%= field.name %> ON <%= tableName %>(<%= field.name %>);
+<% } %>
+<% }); %>
+
+-- Update trigger for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_<%= tableName %>_updated_at ON <%= tableName %>;
+CREATE TRIGGER update_<%= tableName %>_updated_at 
+    BEFORE UPDATE ON <%= tableName %> 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

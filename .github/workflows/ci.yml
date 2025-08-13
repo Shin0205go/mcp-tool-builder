@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Generate test project
+      run: |
+        npm run generate:ui "Test customer management" --preset crud
+        cd generated_project/test_customer_management
+        npm install
+        npm run build
+    
+    - name: Run unit tests
+      run: npm test
+    
+    - name: Run MCP tools/list snapshot test
+      run: |
+        cd generated_project/test_customer_management
+        npm run test:tools-list
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        NODE_ENV: test
+    
+    - name: Run E2E failure tests
+      run: |
+        cd generated_project/test_customer_management  
+        npm run test:e2e-failures
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        NODE_ENV: test
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Security audit
+      run: npm audit --audit-level moderate
+    
+    - name: Run security linter
+      run: npx eslint . --ext .ts,.js --config .eslintrc.security.json

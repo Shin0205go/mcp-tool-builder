@@ -1,0 +1,59 @@
+import { z } from 'zod';
+
+// <%= entity.name %> Schema - Single Source of Truth with strict validation
+export const <%= entity.name %>Schema = z.object({
+  id: z.string().uuid().optional(),
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
+<% entity.fields.forEach(field => { %>
+<% if (field.type === 'uuid' || field.type === 'datetime') return; // Skip auto-generated %>
+<% const zodType = ZOD_MAP[field.type] %>
+<% if (field.nullable) { %>
+  <%= field.name %>: <%= zodType %>.nullable().optional(),
+<% } else { %>
+  <%= field.name %>: <%= zodType %><% if (field.type === 'string') { %>.min(1)<% } %>,
+<% } %>
+<% }); %>
+}).strict();
+
+// Input schemas for different operations - all strict
+export const Create<%= entity.name %>Input = <%= entity.name %>Schema.omit({
+  id: true,
+  created_at: true, 
+  updated_at: true
+}).strict();
+
+export const Get<%= entity.name %>Input = z.object({
+  id: z.string().uuid()
+}).strict();
+
+export const Update<%= entity.name %>Input = z.object({
+  id: z.string().uuid()
+}).merge(<%= entity.name %>Schema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+}).partial()).strict();
+
+export const Delete<%= entity.name %>Input = z.object({
+  id: z.string().uuid()
+}).strict();
+
+export const List<%= entity.name %>sInput = z.object({
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().max(100).default(20)
+}).strict();
+
+// Standard delete result  
+export const DeleteResultSchema = z.object({
+  success: z.boolean()
+}).strict();
+
+// Type exports
+export type <%= entity.name %>Type = z.infer<typeof <%= entity.name %>Schema>;
+export type Create<%= entity.name %>Type = z.infer<typeof Create<%= entity.name %>Input>;
+export type Get<%= entity.name %>Type = z.infer<typeof Get<%= entity.name %>Input>;
+export type Update<%= entity.name %>Type = z.infer<typeof Update<%= entity.name %>Input>;
+export type Delete<%= entity.name %>Type = z.infer<typeof Delete<%= entity.name %>Input>;
+export type List<%= entity.name %>sType = z.infer<typeof List<%= entity.name %>sInput>;
+export type DeleteResultType = z.infer<typeof DeleteResultSchema>;

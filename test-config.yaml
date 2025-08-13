@@ -1,0 +1,13 @@
+name: my-mcp-tool
+description: Generated MCP tool
+preset: custom
+providers:
+  storage: postgres
+ui:
+  enabled: true
+  renderer: rawHtml
+  origin: https://localhost:3000
+generation:
+  templatePack: crud
+  language: typescript
+  target: docker

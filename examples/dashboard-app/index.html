@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Dashboard App - End-to-End Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      min-height: 100vh;
+    }
+    
+    .app-header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .app-header h1 {
+      color: #1f2937;
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    
+    .app-header p {
+      color: #6b7280;
+    }
+    
+    .status-bar {
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin-top: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .status-bar.connected {
+      background: #d1fae5;
+      border-color: #34d399;
+    }
+    
+    .status-bar.error {
+      background: #fee2e2;
+      border-color: #f87171;
+    }
+    
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fbbf24;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-bar.connected .status-indicator {
+      background: #34d399;
+    }
+    
+    .status-bar.error .status-indicator {
+      background: #f87171;
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .controls {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .controls h2 {
+      color: #1f2937;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    
+    .control-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .control-group label {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .control-group input {
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 14px;
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .control-group button {
+      padding: 8px 16px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .control-group button:hover {
+      background: #4f46e5;
+      transform: translateY(-1px);
+    }
+    
+    .control-group button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .dashboard-container {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      min-height: 600px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .dashboard-container h2 {
+      color: #1f2937;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    
+    #dashboard-mount {
+      width: 100%;
+      min-height: 600px;
+      position: relative;
+    }
+    
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      color: #6b7280;
+    }
+    
+    .spinner {
+      border: 3px solid #e5e7eb;
+      border-top: 3px solid #6366f1;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error-message {
+      background: #fee2e2;
+      border: 1px solid #f87171;
+      border-radius: 8px;
+      padding: 15px;
+      color: #991b1b;
+      margin: 20px 0;
+    }
+    
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #3b82f6;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .info-box h3 {
+      color: #1e40af;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    
+    .info-box ul {
+      margin-left: 20px;
+      color: #3730a3;
+      font-size: 14px;
+    }
+    
+    .info-box code {
+      background: #dbeafe;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    
+    .log-panel {
+      background: #1f2937;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+    
+    .log-entry {
+      color: #9ca3af;
+      margin-bottom: 5px;
+    }
+    
+    .log-entry.info { color: #60a5fa; }
+    .log-entry.success { color: #34d399; }
+    .log-entry.error { color: #f87171; }
+    .log-entry.warn { color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <h1>🚀 MCP Dashboard App</h1>
+    <p>End-to-End demonstration of MCP UI mounting and tool invocation</p>
+    <div id="status-bar" class="status-bar">
+      <span class="status-indicator"></span>
+      <span id="status-text">Initializing...</span>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="info-box">
+      <h3>📋 Setup Instructions</h3>
+      <ul>
+        <li>1. Start the MCP server: <code>cd generated_project/customer_dashboard_final && npm start</code></li>
+        <li>2. Start the proxy server: <code>cd packages/mcp-proxy && npm start</code></li>
+        <li>3. Open this HTML file in a browser (or serve it with <code>npx serve .</code>)</li>
+        <li>4. Click "Mount Dashboard" to load the UI</li>
+      </ul>
+    </div>
+    
+    <div class="controls">
+      <h2>⚙️ Configuration</h2>
+      <div class="control-group">
+        <label>Proxy URL:</label>
+        <input type="text" id="proxy-url" value="http://localhost:3001/mcp-proxy" />
+        <label>UI Resource:</label>
+        <input type="text" id="ui-resource" value="ui://customerdashboard/dashboard" />
+        <button id="mount-btn" onclick="mountDashboard()">📊 Mount Dashboard</button>
+        <button id="unmount-btn" onclick="unmountDashboard()" disabled>❌ Unmount</button>
+      </div>
+    </div>
+    
+    <div class="dashboard-container">
+      <h2>📊 Customer Dashboard</h2>
+      <div id="dashboard-mount">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Click "Mount Dashboard" to load the MCP UI</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="log-panel" id="log-panel">
+      <div class="log-entry info">[System] Dashboard app initialized</div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Import Host SDK (in production, this would be from npm package)
+    // For demo, we'll inline the essential functions
+    
+    let mountedUI = null;
+    const logPanel = document.getElementById('log-panel');
+    
+    function log(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const timestamp = new Date().toLocaleTimeString();
+      entry.textContent = `[${timestamp}] ${message}`;
+      logPanel.appendChild(entry);
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+    
+    function setStatus(text, state = 'connecting') {
+      document.getElementById('status-text').textContent = text;
+      document.getElementById('status-bar').className = `status-bar ${state}`;
+    }
+    
+    // HTTP-based MCP tool caller
+    async function callToolHttp(name, args) {
+      const proxyUrl = document.getElementById('proxy-url').value;
+      log(`Calling tool: ${name}`, 'info');
+      
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: crypto.randomUUID(),
+          method: 'tools/call',
+          params: { name, arguments: args }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const json = await response.json();
+      
+      if (json.error) {
+        throw new Error(json.error.message || 'MCP call failed');
+      }
+      
+      // Parse the text content as JSON
+      const content = json?.result?.content?.[0];
+      if (content?.type === 'text') {
+        try {
+          return JSON.parse(content.text);
+        } catch {
+          return content.text;
+        }
+      }
+      
+      throw new Error('Invalid response format');
+    }
+    
+    // HTTP-based MCP resource reader
+    async function readResourceHttp(uri) {
+      const proxyUrl = document.getElementById('proxy-url').value;
+      log(`Reading resource: ${uri}`, 'info');
+      
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: crypto.randomUUID(),
+          method: 'resources/read',
+          params: { uri }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const json = await response.json();
+      
+      if (json.error) {
+        throw new Error(json.error.message || 'Resource read failed');
+      }
+      
+      const text = json?.result?.contents?.[0]?.text;
+      if (!text) {
+        throw new Error(`Resource not found: ${uri}`);
+      }
+      
+      return { html: text };
+    }
+    
+    // Simplified mountUi implementation
+    async function mountUi(options) {
+      const el = typeof options.el === 'string' 
+        ? document.querySelector(options.el) 
+        : options.el;
+        
+      if (!el) throw new Error('Container not found');
+      
+      // Fetch UI resource
+      const { html } = await options.readResource(options.uri);
+      
+      // Create iframe
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('sandbox', 'allow-scripts allow-forms');
+      iframe.style.width = '100%';
+      iframe.style.height = '600px';
+      iframe.style.border = 'none';
+      el.innerHTML = '';
+      el.appendChild(iframe);
+      
+      // Load HTML
+      iframe.srcdoc = html;
+      
+      // Resolve needs
+      const initData = {};
+      for (const need of (options.needs || [])) {
+        try {
+          initData[need.tool] = await options.callTool(need.tool, need.params || {});
+          log(`Resolved need: ${need.tool}`, 'success');
+        } catch (error) {
+          log(`Failed to resolve need ${need.tool}: ${error.message}`, 'error');
+          initData[need.tool] = { error: error.message };
+        }
+      }
+      
+      // Attach broker
+      const messageHandler = async (event) => {
+        if (event.source !== iframe.contentWindow) return;
+        
+        const msg = event.data;
+        if (!msg || typeof msg !== 'object') return;
+        
+        if (msg.type === 'mcp:ui.ready') {
+          log('UI ready, sending bootstrap data', 'success');
+          iframe.contentWindow.postMessage({
+            type: 'mcp:bootstrap',
+            data: initData
+          }, '*');
+        } else if (msg.type === 'mcp:tool.invoke') {
+          const { requestId, tool, params } = msg;
+          
+          // Check allowlist
+          if (options.allowTools && !options.allowTools.includes(tool)) {
+            iframe.contentWindow.postMessage({
+              type: 'mcp:tool.error',
+              requestId,
+              error: `Tool not allowed: ${tool}`
+            }, '*');
+            return;
+          }
+          
+          log(`UI invoking tool: ${tool}`, 'info');
+          
+          try {
+            const result = await options.callTool(tool, params || {});
+            iframe.contentWindow.postMessage({
+              type: 'mcp:tool.result',
+              requestId,
+              result
+            }, '*');
+            log(`Tool ${tool} completed`, 'success');
+          } catch (error) {
+            iframe.contentWindow.postMessage({
+              type: 'mcp:tool.error',
+              requestId,
+              error: error.message
+            }, '*');
+            log(`Tool ${tool} failed: ${error.message}`, 'error');
+          }
+        }
+      };
+      
+      window.addEventListener('message', messageHandler);
+      
+      return {
+        iframe,
+        cleanup: () => {
+          window.removeEventListener('message', messageHandler);
+          el.innerHTML = '';
+        }
+      };
+    }
+    
+    // Mount dashboard function
+    window.mountDashboard = async function() {
+      try {
+        document.getElementById('mount-btn').disabled = true;
+        setStatus('Mounting dashboard...', 'connecting');
+        log('Starting dashboard mount...', 'info');
+        
+        // Check proxy health first
+        const proxyUrl = document.getElementById('proxy-url').value;
+        const healthUrl = proxyUrl.replace('/mcp-proxy', '/health');
+        
+        try {
+          const healthResponse = await fetch(healthUrl);
+          const health = await healthResponse.json();
+          log(`Proxy health: ${health.status}, MCP connected: ${health.mcp.connected}`, 'info');
+        } catch (error) {
+          log('Warning: Could not check proxy health', 'warn');
+        }
+        
+        // Mount the UI
+        mountedUI = await mountUi({
+          el: '#dashboard-mount',
+          uri: document.getElementById('ui-resource').value,
+          needs: [
+            { tool: 'listcustomers', params: { page: 1, limit: 10 } }
+          ],
+          allowTools: [
+            'listcustomers',
+            'createcustomer',
+            'getcustomer', 
+            'updatecustomer',
+            'deletecustomer'
+          ],
+          origin: window.location.origin,
+          callTool: callToolHttp,
+          readResource: readResourceHttp,
+          timeoutMs: 15000
+        });
+        
+        setStatus('Dashboard mounted successfully', 'connected');
+        log('Dashboard mounted and ready!', 'success');
+        document.getElementById('unmount-btn').disabled = false;
+        
+      } catch (error) {
+        setStatus(`Mount failed: ${error.message}`, 'error');
+        log(`Failed to mount dashboard: ${error.message}`, 'error');
+        document.getElementById('mount-btn').disabled = false;
+        
+        // Show error in UI
+        document.getElementById('dashboard-mount').innerHTML = `
+          <div class="error-message">
+            <strong>Failed to mount dashboard:</strong><br>
+            ${error.message}<br><br>
+            Please check that the MCP server and proxy are running.
+          </div>
+        `;
+      }
+    };
+    
+    // Unmount dashboard function
+    window.unmountDashboard = function() {
+      if (mountedUI) {
+        mountedUI.cleanup();
+        mountedUI = null;
+        document.getElementById('unmount-btn').disabled = true;
+        document.getElementById('mount-btn').disabled = false;
+        setStatus('Dashboard unmounted', '');
+        log('Dashboard unmounted', 'info');
+        
+        document.getElementById('dashboard-mount').innerHTML = `
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Click "Mount Dashboard" to load the MCP UI</p>
+          </div>
+        `;
+      }
+    };
+    
+    // Initialize
+    log('Dashboard app ready', 'success');
+    setStatus('Ready to mount dashboard', '');
+  </script>
+</body>
+</html>

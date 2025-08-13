@@ -1,0 +1,61 @@
+/**
+ * Type-safe handler registry
+ * Enforces correct input/output types for each tool
+ */
+
+import { z } from 'zod';
+import type { ToolSpec } from './types.js';
+
+<% entities.forEach(entity => { %>
+<% const entityLower = entity.name.toLowerCase(); %>
+import * as create<%= entity.name %>Module from './mcp-tools/create-<%= entityLower %>.js';
+import * as get<%= entity.name %>Module from './mcp-tools/get-<%= entityLower %>.js';
+import * as update<%= entity.name %>Module from './mcp-tools/update-<%= entityLower %>.js';
+import * as delete<%= entity.name %>Module from './mcp-tools/delete-<%= entityLower %>.js';
+import * as list<%= entity.name %>sModule from './mcp-tools/list-<%= entityLower %>s.js';
+<% }); %>
+
+type InferZod<T> = T extends z.ZodTypeAny ? z.infer<T> : never;
+
+export type Handler<Name extends keyof ToolSpec> = {
+  Input: ToolSpec[Name]['input'];
+  Output: ToolSpec[Name]['output'];
+  run: (
+    params: InferZod<ToolSpec[Name]['input']>, 
+    context: { userId?: string; requestId?: string }
+  ) => Promise<InferZod<ToolSpec[Name]['output']>>;
+};
+
+// Type-safe handler registry - compiler enforces input/output correspondence
+export const handlers: {
+  [K in keyof ToolSpec]: Handler<K>
+} = {
+<% entities.forEach(entity => { %>
+<% const entityLower = entity.name.toLowerCase(); %>
+  'create-<%= entityLower %>': { 
+    Input: create<%= entity.name %>Module.Input, 
+    Output: create<%= entity.name %>Module.Output,
+    run: create<%= entity.name %>Module.run 
+  },
+  'get-<%= entityLower %>': { 
+    Input: get<%= entity.name %>Module.Input, 
+    Output: get<%= entity.name %>Module.Output,
+    run: get<%= entity.name %>Module.run 
+  },
+  'update-<%= entityLower %>': { 
+    Input: update<%= entity.name %>Module.Input, 
+    Output: update<%= entity.name %>Module.Output,
+    run: update<%= entity.name %>Module.run 
+  },
+  'delete-<%= entityLower %>': { 
+    Input: delete<%= entity.name %>Module.Input, 
+    Output: delete<%= entity.name %>Module.Output,
+    run: delete<%= entity.name %>Module.run 
+  },
+  'list-<%= entityLower %>s': { 
+    Input: list<%= entity.name %>sModule.Input, 
+    Output: list<%= entity.name %>sModule.Output,
+    run: list<%= entity.name %>sModule.run 
+  },
+<% }); %>
+} as const;

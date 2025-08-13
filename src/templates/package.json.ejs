@@ -1,0 +1,31 @@
+{
+  "name": "<%= name.toLowerCase().replace(/[^a-z0-9]/g, '') %>",
+  "version": "1.0.0",
+  "description": "<%= description %>",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "test": "node --test tests/*.test.js",
+    "test:tools-list": "node --test tests/tools-list-snapshot.test.js",
+    "test:e2e-failures": "node --test tests/e2e-failures.test.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:setup": "npm run db:migrate",
+    "db:validate": "npx tsx scripts/db-schema-validator.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0",
+    "zod-to-json-schema": "^3.22.0",
+    "pg": "^8.11.0",
+    "dotenv": "^16.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.0",
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0"
+  }
+}

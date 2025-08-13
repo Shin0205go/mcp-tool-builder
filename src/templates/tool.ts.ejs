@@ -1,0 +1,101 @@
+import { z } from 'zod';
+import { 
+  <%= inputs %>,
+  <%= outputs %>
+} from '../schemas/<%= entity.name.toLowerCase() %>.js';
+import { 
+  toApi<%= entity.name %>,
+  <% if (operation === 'create') { %>toStorage<%= entity.name %>FromCreate<% } %>
+  <% if (operation === 'update') { %>toStorage<%= entity.name %>FromUpdate<% } %>
+} from '../adapters/<%= entity.name.toLowerCase() %>.js';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+
+export const Input = <%= inputs %>;
+<% if (outputsArray) { %>export const Output = z.array(<%= outputs %>);<% } else { %>export const Output = <%= outputs %>;<% } %>
+
+/**
+ * <%= operation.charAt(0).toUpperCase() + operation.slice(1) %> <%= entity.name %> - <%= description %>
+ * ENFORCES: toApi() adapter on all responses
+ */
+export async function run(
+  input: z.infer<typeof Input>,
+  context: { userId?: string; requestId?: string } = {}
+): Promise<z.infer<typeof Output>> {
+  
+<% if (operation === 'create') { %>
+  // CREATE operation
+  const storageData = toStorage<%= entity.name %>FromCreate(input);
+  const result = await pool.query(`
+    INSERT INTO <%= tableName %> (<%= insertFields.join(', ') %>)
+    VALUES (<%= insertPlaceholders.join(', ') %>)
+    RETURNING *
+  `, [<%= insertValues.join(', ') %>]);
+  
+  if (result.rows.length === 0) {
+    throw new Error('Failed to create <%= entity.name.toLowerCase() %>');
+  }
+  
+  // MANDATORY: Apply type adapter
+  return toApi<%= entity.name %>(result.rows[0]);
+
+<% } else if (operation === 'get') { %>
+  // GET operation
+  const result = await pool.query(`
+    SELECT * FROM <%= tableName %> WHERE id = $1
+  `, [input.id]);
+  
+  if (result.rows.length === 0) {
+    throw new Error('<%= entity.name %> not found');
+  }
+  
+  // MANDATORY: Apply type adapter
+  return toApi<%= entity.name %>(result.rows[0]);
+
+<% } else if (operation === 'update') { %>
+  // UPDATE operation
+  const storageData = toStorage<%= entity.name %>FromUpdate(input);
+  const fields = Object.keys(storageData).filter(key => key !== 'id');
+  const setClause = fields.map((field, i) => `${field} = $${i + 2}`).join(', ');
+  const values = fields.map(field => storageData[field as keyof typeof storageData]);
+  
+  const result = await pool.query(`
+    UPDATE <%= tableName %>
+    SET ${setClause}, updated_at = NOW()  
+    WHERE id = $1
+    RETURNING *
+  `, [input.id, ...values]);
+  
+  if (result.rows.length === 0) {
+    throw new Error('<%= entity.name %> not found');
+  }
+  
+  // MANDATORY: Apply type adapter
+  return toApi<%= entity.name %>(result.rows[0]);
+
+<% } else if (operation === 'delete') { %>
+  // DELETE operation
+  const result = await pool.query(`
+    DELETE FROM <%= tableName %> WHERE id = $1
+    RETURNING id
+  `, [input.id]);
+  
+  return { success: (result.rowCount || 0) > 0 };
+
+<% } else if (operation === 'list') { %>
+  // LIST operation
+  const offset = (input.page - 1) * input.limit;
+  const result = await pool.query(`
+    SELECT * FROM <%= tableName %>
+    ORDER BY created_at DESC
+    LIMIT $1 OFFSET $2
+  `, [input.limit, offset]);
+  
+  // MANDATORY: Apply type adapter to all rows
+  return result.rows.map(row => toApi<%= entity.name %>(row));
+
+<% } %>
+}

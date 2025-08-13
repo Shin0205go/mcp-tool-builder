@@ -1,0 +1,228 @@
+# CustomerDashboard - MCP Tool Server
+
+Generated MCP (Model Context Protocol) tool server with type-safe handlers, audit logging, and secure UI integration.
+
+## 🚀 Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment
+echo "DATABASE_URL=postgresql://username:password@localhost:5432/customerdashboard" > .env
+
+# Run database migrations
+npm run db:migrate
+
+# Build and start server
+npm run build
+npm start
+```
+
+## 🔧 Generated Structure
+
+```
+├── generated/
+│   ├── constants.ts         # Protocol version & error schemas
+│   ├── types.ts            # ToolSpec type definitions
+│   ├── handlers.ts         # Type-safe handler registry
+│   ├── schemas/            # Zod input/output schemas
+│   ├── adapters/           # DB↔API type converters
+│   ├── mcp-tools/         # CRUD operation implementations
+│   └── resources/         # UI dashboard HTML
+├── migrations/            # Database schema files
+├── index.ts              # MCP server main entry point
+└── test-e2e.mjs         # E2E tests with Zod validation
+```
+
+## 🛡️ Security Features
+
+### MCP Protocol
+- **Protocol Version**: `2024-11-05` (automatically synchronized)
+- **Type Safety**: Full TypeScript typing with no `as any` casts
+- **Request Tracing**: Each tool call gets unique `req-${timestamp}-${random}` ID
+- **Audit Logging**: JSON structured logs for all operations
+
+### UI Security (Dashboard)
+The generated dashboard follows security best practices:
+
+#### Content Security Policy (CSP)
+```html
+<meta http-equiv="Content-Security-Policy" 
+      content="default-src 'none'; script-src 'nonce-{random}'; style-src 'unsafe-inline'; frame-ancestors 'self';">
+```
+
+#### iframe Integration Guidelines
+When embedding the dashboard UI, use these security settings:
+
+**✅ Recommended (Secure)**:
+```html
+<iframe src="ui://customerdashboard/dashboard" 
+        sandbox="allow-scripts"
+        style="width: 100%; height: 600px; border: none;"></iframe>
+```
+
+**⚠️ Use with Caution**:
+```html
+<iframe src="ui://customerdashboard/dashboard" 
+        sandbox="allow-scripts allow-same-origin"
+        style="width: 100%; height: 600px; border: none;"></iframe>
+```
+
+**❌ Avoid (Insecure)**:
+```html
+<iframe src="ui://customerdashboard/dashboard" 
+        sandbox=""
+        style="width: 100%; height: 600px; border: none;"></iframe>
+```
+
+#### postMessage Origin Control
+The dashboard only accepts postMessages from:
+- `https://claude.ai`
+- `http://localhost` (development)
+- `https://localhost` (development with SSL)
+
+To modify allowed origins, edit `ALLOWED_ORIGINS` in the generated dashboard resource.
+
+## 📊 Tools & Schemas
+
+### Available Tools
+
+
+#### Customer Operations
+- `create-customer` - Create new customer
+- `get-customer` - Get customer by ID  
+- `update-customer` - Update existing customer
+- `delete-customer` - Delete customer
+- `list-customers` - List customers with pagination
+
+
+
+### Schema Validation
+All tools provide complete JSON Schema definitions:
+- `inputSchema` - Input parameter validation
+- `outputSchema` - Response format specification  
+- `errorSchema` - Standardized error responses
+
+## 🧪 Testing
+
+### Basic Functionality Test
+```bash
+# Test MCP endpoints
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npm start
+```
+
+### Comprehensive E2E Testing
+```bash
+# Run full test suite (positive + negative cases)
+npm run build && node test-e2e.mjs
+```
+
+The E2E test includes:
+- ✅ All MCP endpoints (tools/list, resources/list, prompts/list)
+- ✅ CRUD operations with Zod output validation
+- ✅ DB connection failure handling
+- ✅ Standard error response format validation
+
+### Database Schema Validation
+Ensure your database schema matches the contract:
+
+```bash
+# Validate schema consistency (after migrations)
+npx tsx scripts/db-schema-validator.ts $DATABASE_URL ./contracts/customerdashboard.schema.json
+```
+
+Example output:
+```
+🔍 Validating database schema against contract...
+📄 Contract: ./contracts/customerdashboard.schema.json
+🗄️  Database: postgresql://<credentials>@localhost:5432/database
+
+✅ Schema validation PASSED!
+🎉 Contract ⇔ Database schema is fully consistent
+```
+
+**Integration with CI/CD**:
+```yaml
+# Add to your CI pipeline
+- name: Validate DB Schema
+  run: |
+    npm run db:migrate
+    npx tsx scripts/db-schema-validator.ts $DATABASE_URL ./contracts/*.schema.json
+```
+
+This ensures:
+- ✅ Contract field types match database column types
+- ✅ Nullable constraints are consistent
+- ✅ Required system columns (id, created_at, updated_at) exist
+- ⚠️  Warns about extra columns not in contract
+
+## 📝 Audit Logs
+
+All tool executions generate structured JSON logs:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "level": "info",
+  "requestId": "req-1705312200000-abc123",
+  "toolName": "create-customer",
+  "message": "Tool execution completed",
+  "details": {
+    "params": { "name": "John Doe", "email": "john@example.com" }
+  }
+}
+```
+
+## 🔄 Type Safety Guarantees
+
+1. **Handler Type Correspondence**: `ToolSpec` ensures tool names match input/output types
+2. **Adapter Enforcement**: All DB responses go through `toApi*()` converters
+3. **Schema Validation**: Zod parsing on all inputs, runtime type checking
+4. **No Type Escapes**: Zero usage of `as any` in generated code
+
+## 🚨 Error Handling
+
+Standard error response format:
+```json
+{
+  "code": 500,
+  "message": "Human readable error description",
+  "details": {
+    "requestId": "req-1705312200000-abc123", 
+    "toolName": "create-customer",
+    "timestamp": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+Error codes follow HTTP conventions:
+- `400` - Bad Request (validation failed)
+- `404` - Not Found (tool/resource not found)
+- `500` - Internal Server Error (database/system failure)
+
+## 🔗 Claude Desktop Integration
+
+Add to your Claude Desktop `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "customerdashboard": {
+      "command": "node",
+      "args": ["path/to/this/project/dist/index.js"],
+      "env": {
+        "DATABASE_URL": "postgresql://username:password@localhost:5432/customerdashboard"
+      }
+    }
+  }
+}
+```
+
+## 📚 Architecture Notes
+
+- **Single Schema-Driven**: Everything generated from `contracts/*.schema.json`
+- **Type Adapters**: Enforced DB↔API conversions prevent type mismatches
+- **ESM Stable**: Uses `.js` extensions and `StdioServerTransport`  
+- **Protocol Compliant**: All required MCP endpoints implemented
+- **Production Ready**: CSP, nonce, ORIGIN control, audit logs, error standards

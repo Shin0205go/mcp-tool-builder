@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    container_name: generated-tool
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/generated_tool
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - generated-tool-network
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: generated-tool-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: generated_tool
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - generated-tool-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+
+networks:
+  generated-tool-network:
+    driver: bridge

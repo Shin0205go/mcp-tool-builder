@@ -1,0 +1,35 @@
+/**
+ * Type-safe tool specifications
+ * Maps tool names to their input/output types
+ */
+
+<% entities.forEach(entity => { %>
+<% const entityLower = entity.name.toLowerCase(); %>
+import type * as <%= entityLower %>Schema from './schemas/<%= entityLower %>.js';
+<% }); %>
+
+export type ToolSpec = {
+<% entities.forEach(entity => { %>
+<% const entityLower = entity.name.toLowerCase(); %>
+  'create-<%= entityLower %>': {
+    input: typeof <%= entityLower %>Schema.Create<%= entity.name %>Input;
+    output: typeof <%= entityLower %>Schema.<%= entity.name %>Schema;
+  };
+  'get-<%= entityLower %>': {
+    input: typeof <%= entityLower %>Schema.Get<%= entity.name %>Input;
+    output: typeof <%= entityLower %>Schema.<%= entity.name %>Schema;
+  };
+  'update-<%= entityLower %>': {
+    input: typeof <%= entityLower %>Schema.Update<%= entity.name %>Input;
+    output: typeof <%= entityLower %>Schema.<%= entity.name %>Schema;
+  };
+  'delete-<%= entityLower %>': {
+    input: typeof <%= entityLower %>Schema.Delete<%= entity.name %>Input;
+    output: typeof <%= entityLower %>Schema.DeleteResultSchema;
+  };
+  'list-<%= entityLower %>s': {
+    input: typeof <%= entityLower %>Schema.List<%= entity.name %>sInput;
+    output: any; // z.array(<%= entity.name %>Schema) - complex type, using any for now
+  };
+<% }); %>
+};

@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name", "entities"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Project description"
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Entity"
+      }
+    }
+  },
+  "definitions": {
+    "Entity": {
+      "type": "object",
+      "required": ["name", "fields"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][a-zA-Z0-9]*$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Field"
+          }
+        }
+      }
+    },
+    "Field": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*$"
+        },
+        "type": {
+          "enum": ["uuid", "string", "email", "number", "datetime", "boolean"]
+        },
+        "nullable": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
